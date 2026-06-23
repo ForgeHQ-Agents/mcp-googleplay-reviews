@@ -15,8 +15,9 @@
 // Dependency-free ESM (Node 18+ global fetch, built-in crypto). Handlers are
 // exported for tests; the stdio JSON-RPC loop runs only when executed directly.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { sign as cryptoSign } from "node:crypto";
+import { fileURLToPath } from "node:url";
 
 const GP_BASE = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications";
 const SCOPE = "https://www.googleapis.com/auth/androidpublisher";
@@ -255,6 +256,14 @@ function main() {
   });
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
-  main();
+// Run only when invoked directly (realpath handles npx/bin symlinks); dormant when imported by tests.
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
 }
+
+if (isMainModule()) main();
