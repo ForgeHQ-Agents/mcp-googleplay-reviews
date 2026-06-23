@@ -1,0 +1,21 @@
+{
+  "name": "googleplay-reviews",
+  "version": "1.0.0",
+  "description": "Read Google Play user reviews and reply to them via the Android Publisher API (reviews-only).",
+  "servers": [
+    {
+      "name": "googleplay-reviews",
+      "type": "mcp_server",
+      "command": "node",
+      "args": ["index.mjs"],
+      "credentials": [
+        {
+          "key": "GOOGLE_APPLICATION_CREDENTIALS",
+          "description": "Service-account JSON key with the 'Reply to reviews' permission on your Play Console app",
+          "required": true,
+          "type": "file"
+        }
+      ]
+    }
+  ]
+}
