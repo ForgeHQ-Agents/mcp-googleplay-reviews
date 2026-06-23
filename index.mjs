@@ -184,14 +184,23 @@ export async function callTool(name, args, { token, fetchImpl = fetch }) {
 
 // ─── stdio JSON-RPC transport (runs only when executed directly) ───
 
-let cachedToken;
-async function tokenFromEnv() {
+let cachedToken; // caches the in-flight promise so concurrent calls share one token exchange
+function tokenFromEnv() {
   const path = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   if (!path) return undefined;
   const now = Math.floor(Date.now() / 1000);
   if (cachedToken && cachedToken.exp > now + 60) return cachedToken.value;
-  const serviceAccount = JSON.parse(readFileSync(path, "utf-8"));
-  const value = await getAccessToken({ serviceAccount });
+  let serviceAccount;
+  try {
+    serviceAccount = JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    // Don't surface the on-disk path to the model.
+    throw new Error("Could not read the Google service-account key file.");
+  }
+  const value = getAccessToken({ serviceAccount }).catch((err) => {
+    cachedToken = undefined; // never cache a failed exchange
+    throw err;
+  });
   cachedToken = { value, exp: now + 3300 };
   return value;
 }
@@ -251,7 +260,11 @@ function main() {
       } catch {
         continue;
       }
-      handle(req).catch(() => {});
+      handle(req).catch(() => {
+        if (req && req.id !== undefined && req.id !== null) {
+          send({ jsonrpc: "2.0", id: req.id, error: { code: -32603, message: "Internal error" } });
+        }
+      });
     }
   });
 }
